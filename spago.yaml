@@ -1,0 +1,26 @@
+package:
+  name: purvasm
+  dependencies:
+    - argonaut
+    - arraybuffer-types
+    - arrays
+    - console
+    - debug
+    - effect
+    - fmt
+    - foldable-traversable
+    - foreign-object
+    - js-promise-aff
+    - maybe
+    - newtype
+    - node-fs
+    - prelude
+    - strings
+    - unicode
+  test:
+    main: Test.Main
+    dependencies: []
+workspace:
+  package_set:
+    registry: 47.9.2
+  extra_packages: {}

@@ -1,0 +1,7 @@
+package:
+  name: cli
+  dependencies:
+    - console
+    - effect
+    - prelude
+    - purvasm
