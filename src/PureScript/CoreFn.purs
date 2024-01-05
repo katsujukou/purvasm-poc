@@ -109,6 +109,10 @@ data Bind a
 
 derive instance functorBind :: Functor Bind
 
+isRec :: forall a. Bind a -> Boolean
+isRec (Rec _) = true
+isRec _ = false
+
 data Binding a = Binding a Ident (Expr a)
 
 derive instance functorBinding :: Functor Binding
