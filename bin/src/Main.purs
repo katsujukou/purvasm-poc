@@ -26,7 +26,7 @@ import Purvasm.MiddleEnd.ELambda.Translate.Monad (runTranslM)
 
 main :: Effect Unit
 main = launchAff_ do
-  path <- liftEffect $ Path.resolve [] "output/Data.Maybe/corefn.json"
+  path <- liftEffect $ Path.resolve [] "output/Sample/corefn.json"
   json <- readTextFile UTF8 path
   let parsedModule = parseJson json >>= CFJ.decodeModule
   case parsedModule of

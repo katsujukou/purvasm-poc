@@ -4,8 +4,7 @@ import Prelude
 
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
-import Purvasm.MiddleEnd.Primitive (Primitive)
-import Purvasm.MiddleEnd.Types (StructureConstant, Var, Arity)
+import Purvasm.MiddleEnd.Types (Primitive, StructureConstant, Var, Arity)
 
 data ELambda
   = ELVar Var

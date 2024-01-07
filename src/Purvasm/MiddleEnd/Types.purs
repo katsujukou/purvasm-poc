@@ -3,7 +3,9 @@ module Purvasm.MiddleEnd.Types
   , AtomicConstant(..)
   , ConstructorTag(..)
   , Ident(..)
+  , ModuleName(..)
   , Occurrence(..)
+  , Primitive(..)
   , StructureConstant(..)
   , Var(..)
   ) where
@@ -19,6 +21,7 @@ data AtomicConstant
   = ACInt Int
   | ACNumber Number
   | ACBoolean Boolean
+  | ACChar Char
   | ACString String
 
 derive instance Eq AtomicConstant
@@ -28,7 +31,10 @@ derive instance Generic AtomicConstant _
 instance Show AtomicConstant where
   show = genericShow
 
-data ConstructorTag = TClosure
+data ConstructorTag
+  = TArray
+  | TRecord
+  | TClosure
 
 derive instance Eq ConstructorTag
 derive instance Ord ConstructorTag
@@ -48,6 +54,20 @@ derive instance Generic StructureConstant _
 instance Show StructureConstant where
   show sc = genericShow sc
 
+data Primitive
+  = PGetGlobal ModuleName Ident
+  | PSetGlobal ModuleName Ident
+  | PGetField Int
+  | PSetField Int
+  | PMakeBlock ConstructorTag
+  | PForeignCall String
+
+derive instance Eq Primitive
+derive instance Ord Primitive
+derive instance Generic Primitive _
+instance Show Primitive where
+  show = genericShow
+
 -- | A local variable representation.
 -- | `newtype`ed integer value is so-called *de Bruijn index*.
 newtype Var = Var Int
@@ -66,6 +86,9 @@ newtype Occurrence = Occurrence (List Int)
 derive instance Newtype Occurrence _
 derive newtype instance Eq Occurrence
 derive newtype instance Ord Occurrence
+derive newtype instance Semigroup Occurrence
+derive newtype instance Monoid Occurrence
+
 instance Show Occurrence where
   show (Occurrence o) = "(Occurrence " <> show o <> ")"
 
@@ -77,3 +100,12 @@ derive instance Ord Ident
 
 instance Show Ident where
   show (Ident id) = "(Ident " <> id <> ")"
+
+newtype ModuleName = ModuleName String
+
+derive instance Newtype ModuleName _
+derive instance Eq ModuleName
+derive instance Ord ModuleName
+
+instance Show ModuleName where
+  show (ModuleName id) = "(ModuleName " <> id <> ")"

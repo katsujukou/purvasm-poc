@@ -109,6 +109,11 @@ data Bind a
 
 derive instance functorBind :: Functor Bind
 
+nonRecBinding :: forall a. Bind a -> Maybe (Binding a)
+nonRecBinding = case _ of
+  NonRec b -> Just b
+  _ -> Nothing
+
 isRec :: forall a. Bind a -> Boolean
 isRec (Rec _) = true
 isRec _ = false
@@ -116,6 +121,12 @@ isRec _ = false
 data Binding a = Binding a Ident (Expr a)
 
 derive instance functorBinding :: Functor Binding
+
+bindingIdent :: forall a. Binding a -> Ident
+bindingIdent (Binding _ ident _) = ident
+
+bindingExpr :: forall a. Binding a -> Expr a
+bindingExpr (Binding _ _ expr) = expr
 
 data Expr a
   = ExprVar a (Qualified Ident)
