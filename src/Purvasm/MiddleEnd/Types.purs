@@ -1,5 +1,7 @@
 module Purvasm.MiddleEnd.Types
-  ( Arity
+  ( (<:)
+  , AccessPosition(..)
+  , Arity
   , AtomicConstant(..)
   , ConstructorTag(..)
   , GlobalName(..)
@@ -9,13 +11,14 @@ module Purvasm.MiddleEnd.Types
   , Primitive(..)
   , StructureConstant(..)
   , Var(..)
+  , cons
   , mkGlobalName
   ) where
 
 import Prelude
 
 import Data.Generic.Rep (class Generic)
-import Data.List (List)
+import Data.List (List, (:))
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 
@@ -64,6 +67,7 @@ data Primitive
   | PSetField Int
   | PMakeBlock ConstructorTag
   | PForeignCall String
+  | PGetRecordField String
 
 derive instance Eq Primitive
 derive instance Ord Primitive
@@ -84,7 +88,17 @@ instance Show Var where
 
 type Arity = Int
 
-newtype Occurrence = Occurrence (List Int)
+data AccessPosition
+  = APIndex Int
+  | APKey String
+
+derive instance Eq AccessPosition
+derive instance Ord AccessPosition
+derive instance Generic AccessPosition _
+instance Show AccessPosition where
+  show = genericShow
+
+newtype Occurrence = Occurrence (List AccessPosition)
 
 derive instance Newtype Occurrence _
 derive newtype instance Eq Occurrence
@@ -94,6 +108,11 @@ derive newtype instance Monoid Occurrence
 
 instance Show Occurrence where
   show (Occurrence o) = "(Occurrence " <> show o <> ")"
+
+cons :: AccessPosition -> Occurrence -> Occurrence
+cons i (Occurrence o) = Occurrence (i : o)
+
+infixr 5 cons as <:
 
 newtype Ident = Ident String
 

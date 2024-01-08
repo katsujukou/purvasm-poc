@@ -10,8 +10,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Prim.TypeError (class Warn)
 import Prim.TypeError as E
-import PureScript.ExternsFile.Decoder.Monad (DecodeError(..))
-import Purvasm.MiddleEnd.Types (GlobalName(..), Ident)
+import Purvasm.MiddleEnd.Types (GlobalName, Ident)
 
 data TranslError
   = UnknownLocal Ident

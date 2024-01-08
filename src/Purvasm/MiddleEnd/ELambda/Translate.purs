@@ -3,9 +3,7 @@ module Purvasm.MiddleEnd.ELambda.Translate where
 import Prelude
 
 import Control.Monad.Error.Class (class MonadError, throwError)
-import Control.Monad.Maybe.Trans (runMaybeT)
-import Control.Monad.Reader (class MonadReader, ask, asks, local)
-import Control.Monad.Rec.Class (Step(..), tailRecM)
+import Control.Monad.Reader (class MonadReader, ask, local)
 import Control.Monad.ST as ST
 import Control.Monad.ST.Internal as STRef
 import Data.Array ((..))
@@ -17,13 +15,12 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
-import Debug (spy)
 import Partial.Unsafe (unsafeCrashWith)
 import PureScript.CoreFn as CF
 import Purvasm.MiddleEnd.ELambda.Syntax (ELambda(..))
 import Purvasm.MiddleEnd.ELambda.Translate.Env (GlobalEnv(..), LocalVarEnv(..), TranslEnv, extendByIdent, searchLocalEnv)
 import Purvasm.MiddleEnd.ELambda.Translate.Error (TranslError(..), throwNotImplemented)
-import Purvasm.MiddleEnd.Types (AtomicConstant(..), ConstructorTag(..), Ident(..), ModuleName(..), Occurrence(..), Primitive(..), StructureConstant(..), Var(..), Arity, mkGlobalName)
+import Purvasm.MiddleEnd.Types (AccessPosition(..), Arity, AtomicConstant(..), ConstructorTag(..), Ident(..), ModuleName(..), Occurrence(..), Primitive(..), StructureConstant(..), Var(..), mkGlobalName)
 import Record as Record
 import Type.Proxy (Proxy(..))
 
@@ -35,7 +32,10 @@ translAccess :: forall m. MonadError TranslError m => MonadReader TranslEnv m =>
 translAccess id = do
   var /\ (Occurrence path) <- searchLocalEnv id
   pure $
-    foldr (\n lambda -> ELPrim (PGetField n) [ lambda ]) (ELVar var) path
+    foldr (\n lambda -> ELPrim (accessorPrim n) [ lambda ]) (ELVar var) path
+  where
+  accessorPrim (APIndex n) = PGetField n
+  accessorPrim (APKey s) = PGetRecordField s
 
 constantExpr :: Expr -> Maybe StructureConstant
 constantExpr = case _ of
@@ -78,6 +78,7 @@ translExpr = case _ of
           ELApply <$> (translExpr func) <*> (traverse translExpr args)
   CF.ExprLet a binds e -> translExprLet a binds e
   CF.ExprConstructor _ _ ctor _ -> translExprConstructor ctor
+  -- CF.ExprCase _ subjects caseAlts ->
   e -> throwNotImplemented (exprType e)
 
   where

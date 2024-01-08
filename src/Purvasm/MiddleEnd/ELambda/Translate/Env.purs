@@ -95,13 +95,13 @@ emptyGlobalEnv = GlobalEnv
   }
 
 externsEnv :: GlobalEnv -> Ext.ExternsFile -> GlobalEnv
-externsEnv (GlobalEnv ge) (Ext.ExternsFile _ (Ext.ModuleName modname) exports imports _ _ decls _) = ge
+externsEnv (GlobalEnv ge) (Ext.ExternsFile _ (Ext.ModuleName modname) _ _ _ _ decls _) = ge
   # flip (foldr applyDecl) decls
   # GlobalEnv
   where
   applyDecl :: Ext.ExternsDeclaration -> _ -> _
   applyDecl = case _ of
-    Ext.EDType (Ext.ProperName typename) _ ty
+    Ext.EDType (Ext.ProperName _) _ ty
       | Ext.DataType _ _ constrs <- ty ->
           let
             applyConstr :: Array (Ext.ProperName /\ Array Ext.SourceType) -> ConstrEnv -> ConstrEnv
@@ -116,14 +116,3 @@ externsEnv (GlobalEnv ge) (Ext.ExternsFile _ (Ext.ModuleName modname) exports im
           in
             Record.modify (Proxy @"constructors") (applyConstr constrs)
     _ -> identity
--- applyExports :: _ -> Ext.DeclarationRef -> _
--- applyExports = case _ of
---   Ext.TypeRef _ typename mbConstrs
---     | Just constrs <- mbConstrs ->
---         foldlWithIndex (\i constrEnv (Ext.ProperName constr) ->
---           Map.insert
---             (Ident constr)
---             { arity: 
---             , tag: i
---             }
---             constrEnv)
