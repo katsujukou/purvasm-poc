@@ -1,7 +1,17 @@
-module PureScript.ExternsFile where
+module PureScript.ExternsFile
+  ( Associativity(..)
+  , ExternsDeclaration(..)
+  , ExternsFile(..)
+  , ExternsFixity(..)
+  , ExternsImport(..)
+  , ExternsTypeFixity(..)
+  , Fixity(..)
+  , ImportDeclarationType(..)
+  , Precedence
+  , module Ext
+  ) where
 
-import Prelude 
-
+import Prelude
 
 import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
@@ -10,42 +20,68 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested (type (/\))
 import Fmt (fmtWith)
-import PureScript.ExternsFile.Declarations (DeclarationRef)
+import Fmt as Fmt
+import PureScript.ExternsFile.Declarations (DeclarationRef(..)) as Ext
 import PureScript.ExternsFile.Decoder.Class (class Decode)
 import PureScript.ExternsFile.Decoder.Generic (genericDecoder)
 import PureScript.ExternsFile.Fmt (ShowRecordLikeConfig)
 import PureScript.ExternsFile.Names (Ident, Qualified, ModuleName, ProperName, NameSource, OpName)
 import PureScript.ExternsFile.SourcePos (SourceSpan)
-import PureScript.ExternsFile.Types (ChainId, DataDeclType, FunctionalDependency,
-                                     SourceConstraint, SourceType, TypeKind)
-
+import PureScript.ExternsFile.Types (ChainId, DataDeclType, FunctionalDependency, SourceConstraint, SourceType, TypeKind)
 
 data ExternsFile = ExternsFile
+  -- efVersion
   String
+  -- efModuleName
   ModuleName
-  (Array DeclarationRef)
+  -- efExports
+  (Array Ext.DeclarationRef)
+  -- efImports
   (Array ExternsImport)
+  -- efFixities
   (Array ExternsFixity)
+  -- efFixities
   (Array ExternsTypeFixity)
+  -- efDeclarations
   (Array ExternsDeclaration)
+  -- efSourceSpan
   SourceSpan
 
-derive instance Generic ExternsFile _ 
+derive instance Generic ExternsFile _
 
 instance Show ExternsFile where
-  show = genericShow 
+  show (ExternsFile ver mn refs imps fixes tfixes decls ss) = Fmt.fmtWith
+    @ShowRecordLikeConfig
+    @"(ExternsFile\
+    \ { version = <ver>\
+    \ , exports = <refs>\
+    \ , imports = <imps>\
+    \ , fixities = <fixes>\
+    \ , typeFixities = <tfixes>\
+    \ , decls = <decls>\
+    \ , sourceSpan = <ss>\
+    \ })"
+    { ver: show ver
+    , mn: show mn
+    , refs: show refs
+    , imps: show imps
+    , fixes: show fixes
+    , tfixes: show tfixes
+    , decls: show decls
+    , ss: show ss
+    }
 
-instance Decode ExternsFile where 
+instance Decode ExternsFile where
   decoder = genericDecoder
 
 data ImportDeclarationType
   = Implicit
-  | Explicit (Array DeclarationRef)
-  | Hiding (Array DeclarationRef)
+  | Explicit (Array Ext.DeclarationRef)
+  | Hiding (Array Ext.DeclarationRef)
 
-derive instance  Eq ImportDeclarationType
+derive instance Eq ImportDeclarationType
 derive instance Ord ImportDeclarationType
-derive instance Generic ImportDeclarationType _ 
+derive instance Generic ImportDeclarationType _
 instance Show ImportDeclarationType where
   show = genericShow
 
@@ -59,12 +95,12 @@ data ExternsImport = ExternsImport
 
 derive instance Eq ExternsImport
 derive instance Ord ExternsImport
-derive instance Generic ExternsImport _ 
+derive instance Generic ExternsImport _
 instance Show ExternsImport where
   show = genericShow
 
 instance Decode ExternsImport where
- decoder = genericDecoder 
+  decoder = genericDecoder
 
 type Precedence = Int
 
@@ -80,7 +116,7 @@ instance Show Associativity where
   show = genericShow
 
 instance Decode Associativity where
-  decoder = genericDecoder 
+  decoder = genericDecoder
 
 data Fixity = Fixity Associativity Precedence
 
@@ -98,18 +134,18 @@ data ExternsFixity = ExternsFixity
 
 derive instance Eq ExternsFixity
 derive instance Ord ExternsFixity
-derive instance Generic ExternsFixity _ 
+derive instance Generic ExternsFixity _
 instance Show ExternsFixity where
   show = genericShow
 
 instance Decode ExternsFixity where
-  decoder = genericDecoder 
+  decoder = genericDecoder
 
 data ExternsTypeFixity = ExternsTypeFixity Associativity Precedence OpName (Qualified ProperName)
 
 derive instance Eq ExternsTypeFixity
 derive instance Ord ExternsTypeFixity
-derive instance Generic ExternsTypeFixity _ 
+derive instance Generic ExternsTypeFixity _
 instance Show ExternsTypeFixity where
   show = genericShow
 
@@ -118,52 +154,52 @@ instance Decode ExternsTypeFixity where
 
 data ExternsDeclaration
   = EDType
-      ProperName    -- edTypeName
-      SourceType    -- edTypeKind
-      TypeKind      -- edTypeDeclarationKind
-  | EDTypeSynonym 
-      ProperName                            -- edTypeSynonymName
-      (Array (String /\ Maybe SourceType))  -- edTypeSynonymArguments
-      SourceType                            -- edTypeSynonymType
-  | EDDataConstructor 
-      ProperName        -- edDataCtorName
-      DataDeclType      -- edDataCtorOrigin
-      ProperName        -- edDataCtorTypeCtor
-      SourceType        -- edDataCtorType
-      (Array Ident)     -- edDataCtorFields
+      ProperName -- edTypeName
+      SourceType -- edTypeKind
+      TypeKind -- edTypeDeclarationKind
+  | EDTypeSynonym
+      ProperName -- edTypeSynonymName
+      (Array (String /\ Maybe SourceType)) -- edTypeSynonymArguments
+      SourceType -- edTypeSynonymType
+  | EDDataConstructor
+      ProperName -- edDataCtorName
+      DataDeclType -- edDataCtorOrigin
+      ProperName -- edDataCtorTypeCtor
+      SourceType -- edDataCtorType
+      (Array Ident) -- edDataCtorFields
   | EDValue
-      Ident             -- edValueName
-      SourceType        -- edValueType
+      Ident -- edValueName
+      SourceType -- edValueType
   | EDClass
-      ProperName                           -- edClassName
+      ProperName -- edClassName
       (Array (String /\ Maybe SourceType)) -- edClassTypeArguments
-      (Array (Ident /\ SourceType))        -- edClassMembers
-      (Array SourceConstraint)             -- edClassConstraints
-      (Array FunctionalDependency)         -- edFunctionalDependencies
-      Boolean                              -- edIsEmpty
-  | EDInstance 
-      (Qualified ProperName)               -- edInstanceClassName
-      Ident                                -- edInstanceName
-      (Array (Tuple String SourceType))    -- edInstanceForAll
-      (Array SourceType)                   -- edInstanceKinds
-      (Array SourceType)                   -- edInstanceTypes
-      (Maybe (Array SourceConstraint))     -- edInstanceConstraints
-      (Maybe ChainId)                      -- edInstanceChain
-      Int                                  -- edInstanceChainIndex
-      NameSource                           -- edInstanceNameSource
-      SourceSpan                           -- edInstanceSourceSpan
+      (Array (Ident /\ SourceType)) -- edClassMembers
+      (Array SourceConstraint) -- edClassConstraints
+      (Array FunctionalDependency) -- edFunctionalDependencies
+      Boolean -- edIsEmpty
+  | EDInstance
+      (Qualified ProperName) -- edInstanceClassName
+      Ident -- edInstanceName
+      (Array (Tuple String SourceType)) -- edInstanceForAll
+      (Array SourceType) -- edInstanceKinds
+      (Array SourceType) -- edInstanceTypes
+      (Maybe (Array SourceConstraint)) -- edInstanceConstraints
+      (Maybe ChainId) -- edInstanceChain
+      Int -- edInstanceChainIndex
+      NameSource -- edInstanceNameSource
+      SourceSpan -- edInstanceSourceSpan
 
-instance Show ExternsDeclaration where 
+instance Show ExternsDeclaration where
   show = case _ of
-    EDType pn ty ki -> fmtWith
+    EDType pn ki ty -> fmtWith
       @ShowRecordLikeConfig
-      @"EDType { name = <pn>, kind = <ty>, declarationKind = <ki> }"
+      @"EDType { name = <pn>, kind = <ki>, type = <ty> }"
       { pn: show pn, ty: show ty, ki: show ki }
-    EDTypeSynonym pn args ty -> fmtWith 
+    EDTypeSynonym pn args ty -> fmtWith
       @ShowRecordLikeConfig
       @"EDTypeSynonym { name = <pn>, arguments = <args>, type = <ty> }"
       { pn: show pn, args: show args, ty: show ty }
-    EDDataConstructor name orig typ sig flds -> fmtWith 
+    EDDataConstructor name orig typ sig flds -> fmtWith
       @ShowRecordLikeConfig
       @"EDDataConstructor { name = <name>, origin = <orig>, type = <typ>, signature = <sig>, fields = <flds> }"
       { name: show name
@@ -199,7 +235,7 @@ instance Show ExternsDeclaration where
       , chIdx: show chIdx
       , nameSrc: show nameSrc
       , ss: show ss
-      }   
+      }
 
 derive instance Generic ExternsDeclaration _
 

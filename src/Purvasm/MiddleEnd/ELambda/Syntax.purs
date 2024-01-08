@@ -16,6 +16,7 @@ data ELambda
   | ELPrim Primitive (Array ELambda)
   | ELIfThenElse ELambda ELambda ELambda
   | ELSequence ELambda ELambda
+  | ELNone
 
 derive instance Eq ELambda
 derive instance Ord ELambda

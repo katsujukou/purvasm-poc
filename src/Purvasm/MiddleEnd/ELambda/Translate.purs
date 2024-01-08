@@ -8,10 +8,12 @@ import Control.Monad.Reader (class MonadReader, ask, asks, local)
 import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Control.Monad.ST as ST
 import Control.Monad.ST.Internal as STRef
+import Data.Array ((..))
 import Data.Array as Array
 import Data.Array.ST as STArray
 import Data.Foldable (foldr)
 import Data.List as L
+import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -19,9 +21,9 @@ import Debug (spy)
 import Partial.Unsafe (unsafeCrashWith)
 import PureScript.CoreFn as CF
 import Purvasm.MiddleEnd.ELambda.Syntax (ELambda(..))
-import Purvasm.MiddleEnd.ELambda.Translate.Env (LocalVarEnv(..), TranslEnv, extendByIdent, searchLocalEnv)
-import Purvasm.MiddleEnd.ELambda.Translate.Error (TranslError, throwNotImplemented)
-import Purvasm.MiddleEnd.Types (AtomicConstant(..), ConstructorTag(..), Ident(..), ModuleName(..), Occurrence(..), Primitive(..), StructureConstant(..), Var(..))
+import Purvasm.MiddleEnd.ELambda.Translate.Env (GlobalEnv(..), LocalVarEnv(..), TranslEnv, extendByIdent, searchLocalEnv)
+import Purvasm.MiddleEnd.ELambda.Translate.Error (TranslError(..), throwNotImplemented)
+import Purvasm.MiddleEnd.Types (AtomicConstant(..), ConstructorTag(..), Ident(..), ModuleName(..), Occurrence(..), Primitive(..), StructureConstant(..), Var(..), Arity, mkGlobalName)
 import Record as Record
 import Type.Proxy (Proxy(..))
 
@@ -52,6 +54,15 @@ constantExpr = case _ of
 
 translExpr :: forall m. MonadError TranslError m => MonadReader TranslEnv m => Expr -> m ELambda
 translExpr = case _ of
+  CF.ExprVar _ var -> case var of
+    CF.Qualified Nothing id -> translAccess (translIdent id)
+    CF.Qualified (Just mn) id -> do
+      { global: GlobalEnv ge } <- ask
+      let globalName = mkGlobalName (translModuleName mn) (translIdent id)
+      case Map.lookup globalName ge.constructors of
+        Just desc
+          | desc.arity == 0 -> pure $ ELConst (SCBlock (TConstr desc.tag) [])
+        _ -> pure $ ELPrim (PGetGlobal $ mkGlobalName (translModuleName mn) (translIdent id)) []
   elit@(CF.ExprLit _ lit) -> case constantExpr elit of
     Just sc -> pure (ELConst sc)
     Nothing -> case lit of
@@ -59,41 +70,21 @@ translExpr = case _ of
       CF.LitRecord _ -> throwNotImplemented "Record literal"
       _ -> unsafeCrashWith "translExpr:ExprLit non-constant literal"
   f@(CF.ExprAbs _ _ _) -> translAbs 0 f
-  CF.ExprVar _ var -> case var of
-    CF.Qualified Nothing id -> translAccess (translIdent id)
-    CF.Qualified (Just mn) id -> pure $ ELPrim (PGetGlobal (translModuleName mn) (translIdent id)) []
-  -- Note: This translation is not complete because
-  -- We have to consider the case where `abs` is Constructor or global.
-  -- In the first case, we need to check whether that constructor is fully applied and 
-  -- and those arguments are all constant, where we should translate this application into
-  -- the primitive operation `ELConst`, and if one of these arguments is not constant, then
-  -- we translate this into `ELPrim (MakeBlock constructorTag)`.
-  -- In the second case, we should translate this into prim GetGlobal.  
-  CF.ExprApp _ abs arg ->
-    let
-      func /\ args = uncurryNaryApp abs arg
-    in
-      ELApply <$> (translExpr func) <*> (traverse translExpr args)
+  CF.ExprApp _ abs arg -> case uncurryNaryApp abs arg of
+    func /\ args
+      | CF.ExprVar _ (CF.Qualified (Just mn) id) <- func -> do
+          translAppWithGlobalName (translModuleName mn) (translIdent id) args
+      | otherwise ->
+          ELApply <$> (translExpr func) <*> (traverse translExpr args)
   CF.ExprLet a binds e -> translExprLet a binds e
-  _ -> pure $ ELVar (Var 0)
+  CF.ExprConstructor _ _ ctor _ -> translExprConstructor ctor
+  e -> throwNotImplemented (exprType e)
 
   where
+  translAbs :: Arity -> Expr -> m ELambda
   translAbs arity = case _ of
     CF.ExprAbs _ id e -> local (extendByIdent [ translIdent id ]) (translAbs (arity + 1) e)
     e -> ELFunction arity <$> translExpr e
-
-  -- uncurryAbs f arg0 = ST.run do
-  --   refArgs <- STArray.thaw [ CF.BinderVar CF.emptyAnn arg0 ]
-  --   refBody <- STRef.new f
-  --   continue <- STRef.new true
-  --   ST.while (STRef.read continue) do
-  --     STRef.read refBody >>= case _ of
-  --       CF.ExprAbs _ arg body -> do
-  --         STRef.write body refBody
-  --           *> STArray.push (CF.BinderVar CF.emptyAnn arg) refArgs
-  --           $> unit
-  --       _ -> STRef.write false continue $> unit
-  --   (/\) <$> STArray.freeze refArgs <*> STRef.read refBody
 
   uncurryNaryApp :: _ -> _ -> Expr /\ Array Expr
   uncurryNaryApp f arg0 = ST.run do
@@ -108,6 +99,21 @@ translExpr = case _ of
             $> unit
         _ -> STRef.write false continue $> unit
     (/\) <$> STRef.read refAbs <*> STArray.freeze refArgs
+
+  translAppWithGlobalName :: ModuleName -> Ident -> Array Expr -> m ELambda
+  translAppWithGlobalName mn id args = do
+    { global: GlobalEnv ge } <- ask
+    trArgs <- traverse translExpr args
+    let globalName = mkGlobalName mn id
+    pure $ case Map.lookup globalName ge.constructors of
+      Just desc
+        -- Constructor fully applied 
+        | desc.arity == Array.length args ->
+            case traverse elambdaConst trArgs of
+              Just constArgs -> ELConst (SCBlock (TConstr desc.tag) constArgs)
+              _ -> ELPrim (PMakeBlock (TConstr desc.tag)) trArgs
+      -- Constructor partially applied or Unknown constroctor (or maybe should we trap this case ?)
+      _ -> ELApply (ELPrim (PGetGlobal globalName) []) trArgs
 
   translExprLet :: CF.Ann -> Array Bind -> Expr -> m ELambda
   translExprLet a binds e = case spanMap CF.nonRecBinding binds of
@@ -130,6 +136,21 @@ translExpr = case _ of
       in
         ELlet <$> translLet exprs <*> local (extendByIdent ids) (translExpr body)
 
+  translExprConstructor ctor = do
+    { moduleName: mn, global: GlobalEnv { constructors: constrEnv } } <- ask
+    let globalConstrName = mkGlobalName mn (translIdent ctor)
+    case Map.lookup globalConstrName constrEnv of
+      Nothing -> throwError $ UnknownGlobal globalConstrName
+      Just desc
+        | desc.arity > 0 ->
+            let
+              prim = ELPrim (PMakeBlock (TConstr desc.tag))
+              args = map (ELVar <<< Var) $ Array.reverse (0 .. (desc.arity - 1))
+              body = prim args
+            in
+              pure $ ELFunction desc.arity body
+        | otherwise -> pure ELNone
+
   translIdent :: CF.Ident -> Ident
   translIdent (CF.Ident id) = Ident id
 
@@ -145,6 +166,21 @@ translExpr = case _ of
         L.Cons
           <$> translExpr head
           <*> local (Record.modify (Proxy @"local") TReserved) (go tail)
+
+  exprType = case _ of
+    CF.ExprVar _ _ -> "ExprVar"
+    CF.ExprLit _ _ -> "ExprLit"
+    CF.ExprAbs _ _ _ -> "ExprAbs"
+    CF.ExprApp _ _ _ -> "ExprApp"
+    CF.ExprAccessor _ _ _ -> "ExprAccessor"
+    CF.ExprUpdate _ _ _ -> "ExprUpdate"
+    CF.ExprLet _ _ _ -> "ExprLet"
+    CF.ExprConstructor _ _ _ _ -> "ExprConstructor"
+    CF.ExprCase _ _ _ -> "ExprCase"
+
+elambdaConst :: ELambda -> Maybe StructureConstant
+elambdaConst (ELConst sc) = Just sc
+elambdaConst _ = Nothing
 
 translPatternMatch
   :: forall m

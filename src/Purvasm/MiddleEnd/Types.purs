@@ -2,12 +2,14 @@ module Purvasm.MiddleEnd.Types
   ( Arity
   , AtomicConstant(..)
   , ConstructorTag(..)
+  , GlobalName(..)
   , Ident(..)
   , ModuleName(..)
   , Occurrence(..)
   , Primitive(..)
   , StructureConstant(..)
   , Var(..)
+  , mkGlobalName
   ) where
 
 import Prelude
@@ -35,6 +37,7 @@ data ConstructorTag
   = TArray
   | TRecord
   | TClosure
+  | TConstr Int
 
 derive instance Eq ConstructorTag
 derive instance Ord ConstructorTag
@@ -55,8 +58,8 @@ instance Show StructureConstant where
   show sc = genericShow sc
 
 data Primitive
-  = PGetGlobal ModuleName Ident
-  | PSetGlobal ModuleName Ident
+  = PGetGlobal GlobalName
+  | PSetGlobal GlobalName
   | PGetField Int
   | PSetField Int
   | PMakeBlock ConstructorTag
@@ -109,3 +112,17 @@ derive instance Ord ModuleName
 
 instance Show ModuleName where
   show (ModuleName id) = "(ModuleName " <> id <> ")"
+
+newtype GlobalName = GlobalName
+  { modname :: ModuleName
+  , ident :: Ident
+  }
+
+derive instance Generic GlobalName _
+derive instance Eq GlobalName
+derive instance Ord GlobalName
+instance Show GlobalName where
+  show (GlobalName gn) = "(GlobalName " <> show gn <> ")"
+
+mkGlobalName :: ModuleName -> Ident -> GlobalName
+mkGlobalName modname ident = GlobalName { modname, ident }

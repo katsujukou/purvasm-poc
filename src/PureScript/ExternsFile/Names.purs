@@ -10,7 +10,6 @@ import PureScript.ExternsFile.Decoder.Generic (genericDecoder)
 import PureScript.ExternsFile.Decoder.Newtype (newtypeDecoder)
 import PureScript.ExternsFile.SourcePos (SourcePos)
 
-
 newtype ModuleName = ModuleName String
 
 derive instance Newtype ModuleName _
@@ -33,39 +32,38 @@ instance Show ProperName where
 instance Decode ProperName where
   decoder = newtypeDecoder
 
-newtype OpName = OpName String 
+newtype OpName = OpName String
 
-derive instance Newtype OpName _ 
+derive instance Newtype OpName _
 derive instance Eq OpName
-derive instance Ord OpName 
+derive instance Ord OpName
 instance Show OpName where
-  show (OpName on) = "(OpName " <> on <> ")" 
+  show (OpName on) = "(OpName " <> on <> ")"
 
 instance Decode OpName where
   decoder = newtypeDecoder
 
 newtype Ident = Ident String
 
-derive instance Newtype Ident _ 
-derive instance Eq Ident 
-derive instance Ord Ident 
-instance Show Ident where 
-  show (Ident id) = "(Ident "<> id <> ")"
+derive instance Newtype Ident _
+derive instance Eq Ident
+derive instance Ord Ident
+instance Show Ident where
+  show (Ident id) = "(Ident " <> id <> ")"
 
 instance Decode Ident where
   decoder = newtypeDecoder
 
-
-data QualifiedBy 
+data QualifiedBy
   = BySourcePos SourcePos
-  | ByModuleName ModuleName 
+  | ByModuleName ModuleName
 
 derive instance Eq QualifiedBy
 derive instance Ord QualifiedBy
 derive instance Generic QualifiedBy _
 
 instance Show QualifiedBy where
-  show = genericShow 
+  show = genericShow
 
 instance Decode QualifiedBy where
   decoder = genericDecoder
@@ -73,7 +71,7 @@ instance Decode QualifiedBy where
 data Qualified a = Qualified QualifiedBy a
 
 derive instance Eq a => Eq (Qualified a)
-derive instance Ord a => Ord (Qualified a) 
+derive instance Ord a => Ord (Qualified a)
 derive instance Generic (Qualified a) _
 instance Show a => Show (Qualified a) where
   show = genericShow
@@ -85,7 +83,7 @@ data NameSource = UserNamed | CompilerNamed
 
 derive instance Eq NameSource
 derive instance Ord NameSource
-derive instance Generic NameSource _ 
+derive instance Generic NameSource _
 
 instance Show NameSource where
   show = genericShow

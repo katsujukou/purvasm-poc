@@ -10,7 +10,6 @@ import PureScript.ExternsFile.Decoder.Class (class Decode)
 import PureScript.ExternsFile.Decoder.Generic (genericDecoder)
 import PureScript.ExternsFile.Fmt (ShowRecordLikeConfig)
 
-
 data SourcePos = SourcePos Int Int -- line, column
 
 derive instance Eq SourcePos
@@ -26,13 +25,13 @@ instance showSourcePos :: Show SourcePos where
 instance decodeSourcePos :: Decode SourcePos where
   decoder = genericDecoder
 
-data SourceSpan = SourceSpan String SourcePos SourcePos 
+data SourceSpan = SourceSpan String SourcePos SourcePos
 
 derive instance Eq SourceSpan
 derive instance Ord SourceSpan
 derive instance Generic SourceSpan _
 instance showSourceSpan :: Show SourceSpan where
-  show (SourceSpan name start end) = 
+  show (SourceSpan name start end) =
     fmtWith
       @ShowRecordLikeConfig
       @"SourceSpan { name = <name>, start = <start>, end = <end> }"
@@ -48,9 +47,10 @@ data Comment
   | BlockComment String
 
 derive instance Eq Comment
-derive instance Ord Comment 
-derive instance Generic Comment _ 
+derive instance Ord Comment
+derive instance Generic Comment _
 instance Show Comment where
   show = genericShow
+
 instance Decode Comment where
-  decoder = genericDecoder 
+  decoder = genericDecoder
