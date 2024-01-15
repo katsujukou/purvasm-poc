@@ -15,6 +15,7 @@ import Purvasm.MiddleEnd.Types (GlobalName, Ident)
 data TranslError
   = UnknownLocal Ident
   | UnknownGlobal GlobalName
+  | UnexpectedEmptyCaseHead
   | NotImplemented String
 
 derive instance Generic TranslError _

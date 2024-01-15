@@ -9,6 +9,7 @@ module Purvasm.MiddleEnd.Types
   , ModuleName(..)
   , Occurrence(..)
   , Primitive(..)
+  , RecordShape
   , StructureConstant(..)
   , Var(..)
   , cons
@@ -36,9 +37,11 @@ derive instance Generic AtomicConstant _
 instance Show AtomicConstant where
   show = genericShow
 
+type RecordShape = List String
+
 data ConstructorTag
   = TArray
-  | TRecord
+  | TRecord RecordShape
   | TClosure
   | TConstr Int
 

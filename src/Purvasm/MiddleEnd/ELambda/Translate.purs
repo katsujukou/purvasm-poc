@@ -78,7 +78,16 @@ translExpr = case _ of
           ELApply <$> (translExpr func) <*> (traverse translExpr args)
   CF.ExprLet a binds e -> translExprLet a binds e
   CF.ExprConstructor _ _ ctor _ -> translExprConstructor ctor
-  -- CF.ExprCase _ subjects caseAlts ->
+  CF.ExprCase _ caseHeads caseAlts
+    | [ caseHead ] <- caseHeads
+    , [ caseT, caseF ] <- caseAlts
+    , CF.CaseAlternative [ CF.BinderLit _ (CF.LitBoolean true) ] (CF.Unconditional exprT) <- caseT
+    , CF.CaseAlternative [ CF.BinderNull _ ] (CF.Unconditional exprF) <- caseF ->
+        ELIfThenElse
+          <$> translExpr caseHead 
+          <*> translExpr exprT 
+          <*> translExpr exprF
+  -- | otherwise -> translExprCase caseHeads caseAlts
   e -> throwNotImplemented (exprType e)
 
   where
@@ -151,6 +160,13 @@ translExpr = case _ of
             in
               pure $ ELFunction desc.arity body
         | otherwise -> pure ELNone
+
+  -- translExprCase :: Array Expr -> Array (CF.CaseAlternative CF.Ann) -> m ELambda
+  -- translExprCase heads caseAlts =
+  --   patternMatching <- ado
+  --     trHeads <- traverse translExpr heads
+  --     tr
+  --   pure ELNone
 
   translIdent :: CF.Ident -> Ident
   translIdent (CF.Ident id) = Ident id
