@@ -87,6 +87,10 @@ data PatternMatching = PatternMatching
   -- list of patterns and corresponding action
   (Array PatternMatrix)
 
+derive instance Generic PatternMatching _
+instance Show PatternMatching where
+  show = genericShow
+
 addToMatch :: PatternMatching -> PatternMatrix -> PatternMatching
 addToMatch (PatternMatching head casel) cas = PatternMatching head (Array.cons cas casel)
 
@@ -142,16 +146,27 @@ alwaysMatch = case _ of
   PatRecord props -> Array.all (alwaysMatch <<< snd) props
   _ -> false
 
+emptyMatching :: PatternMatching
+emptyMatching = PatternMatching [] []
+
 -- |
-splitMatching :: Partial => PatternMatching -> PatternMatching /\ PatternMatching
-splitMatching (PatternMatching heads matrix) = go matrix
+-- | Ω   p12 ... p1k -> a1
+-- | Ω   p22 ... p2k -> a2
+-- | ︙   ︙  ... ︙     ︙
+-- | Ω   pi2 ... pik -> ai
+-- | pj1 pj2 ... pjk -> b1
+-- | ︙   ︙  ... ︙     ︙
+-- | pm1 pm2 ... pmk -> bl 
+splitMatching :: PatternMatching -> PatternMatching /\ PatternMatching
+splitMatching (PatternMatching heads matrix) = case Array.uncons heads of
+  Nothing -> unsafeCrashWith "splitMatching: Illegal empty case heads"
+  Just { tail: casHeads } -> go (PatternMatching casHeads []) matrix
   where
-  go = Array.uncons >>> case _ of
-    Nothing -> unsafeCrashWith "splitMatching: empty matrix"
-    Just { head: mat@{ patList }, tail: restMat }
-      | Just { head: pat, tail: restPat } <- Array.uncons patList
-      , alwaysMatch pat ->
-          let
-            vars /\ others = go restMat
-          in
-            Tuple (addToMatch vars (mat { patList = restPat })) others
+  go vars mat = case Array.uncons mat of
+    Nothing -> vars /\ (PatternMatching heads mat)
+    Just { head: { patList, action }, tail: matRest } ->
+      case Array.uncons patList of
+        Nothing -> unsafeCrashWith "splitMatching: Illegal case matrix of zero rows"
+        Just { head: pat, tail: patL }
+          | alwaysMatch pat -> go (addToMatch vars { patList: patL, action }) matRest
+          | otherwise -> vars /\ (PatternMatching heads mat)

@@ -11,6 +11,8 @@ data ELambda
   | ELConst StructureConstant
   | ELApply ELambda (Array ELambda)
   | ELFunction Arity ELambda
+  | ELStaticFail 
+  | ELStaticHandle ELambda ELambda
   | ELlet (Array ELambda) ELambda
   | ELletrec (Array ELambda) ELambda
   | ELPrim Primitive (Array ELambda)

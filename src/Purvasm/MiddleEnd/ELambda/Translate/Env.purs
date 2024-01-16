@@ -74,7 +74,11 @@ extendByIdent ids env0 = foldl (\env id -> env { local = TEnv [ id /\ mempty ] e
 
 -- | Extend local env by bound variables in the given binders (patterns)
 extendByBinders :: forall f a. Foldable f => f (CF.Binder a) -> TranslEnv -> TranslEnv
-extendByBinders binders env0 = foldl (\env binder -> env { local = TEnv (binderPaths mempty binder) env.local }) env0 binders
+extendByBinders binders env0 = foldl (\env binder -> env { local = extend binder env.local }) env0 binders
+  where
+  extend binder env = case binderPaths mempty binder of
+    [] -> env
+    vars -> TEnv vars env
 
 -- | Collect all local bound variables and occurrence in the given binders.
 binderPaths :: forall a. Occurrence -> CF.Binder a -> Array (Tuple Ident Occurrence)
