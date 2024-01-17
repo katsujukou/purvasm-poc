@@ -71,6 +71,7 @@ data Primitive
   | PMakeBlock ConstructorTag
   | PForeignCall String
   | PGetRecordField String
+  | PGetBlockSize
 
 derive instance Eq Primitive
 derive instance Ord Primitive

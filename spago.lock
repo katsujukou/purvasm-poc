@@ -10,13 +10,16 @@ workspace:
       test_dependencies: []
       build_plan:
         - aff
+        - ansi
         - argonaut
         - argonaut-codecs
         - argonaut-core
         - argonaut-traversals
         - arraybuffer-types
         - arrays
+        - avar
         - bifunctors
+        - catenable-lists
         - console
         - const
         - contravariant
@@ -33,6 +36,8 @@ workspace:
         - foldable-traversable
         - foreign
         - foreign-object
+        - fork
+        - free
         - functions
         - functors
         - gen
@@ -45,6 +50,7 @@ workspace:
         - lazy
         - lists
         - maybe
+        - mmorph
         - newtype
         - node-buffer
         - node-event-emitter
@@ -59,6 +65,7 @@ workspace:
         - orders
         - parallel
         - partial
+        - pipes
         - prelude
         - profunctor
         - profunctor-lenses
@@ -66,6 +73,7 @@ workspace:
         - record
         - refs
         - safe-coerce
+        - spec
         - st
         - strings
         - tailrec
@@ -95,16 +103,20 @@ workspace:
         - prelude
         - strings
         - unicode
-      test_dependencies: []
+      test_dependencies:
+        - spec
       build_plan:
         - aff
+        - ansi
         - argonaut
         - argonaut-codecs
         - argonaut-core
         - argonaut-traversals
         - arraybuffer-types
         - arrays
+        - avar
         - bifunctors
+        - catenable-lists
         - console
         - const
         - contravariant
@@ -121,6 +133,8 @@ workspace:
         - foldable-traversable
         - foreign
         - foreign-object
+        - fork
+        - free
         - functions
         - functors
         - gen
@@ -133,6 +147,7 @@ workspace:
         - lazy
         - lists
         - maybe
+        - mmorph
         - newtype
         - node-buffer
         - node-event-emitter
@@ -147,12 +162,14 @@ workspace:
         - orders
         - parallel
         - partial
+        - pipes
         - prelude
         - profunctor
         - profunctor-lenses
         - record
         - refs
         - safe-coerce
+        - spec
         - st
         - strings
         - tailrec
@@ -653,6 +670,14 @@ packages:
       - tailrec
       - transformers
       - unsafe-coerce
+  ansi:
+    type: registry
+    version: 7.0.0
+    integrity: sha256-ZMB6HD+q9CXvn9fRCmJ8dvuDrOVHcjombL3oNOerVnE=
+    dependencies:
+      - foldable-traversable
+      - lists
+      - strings
   argonaut:
     type: registry
     version: 9.0.0
@@ -725,6 +750,17 @@ packages:
       - tuples
       - unfoldable
       - unsafe-coerce
+  avar:
+    type: registry
+    version: 5.0.0
+    integrity: sha256-e7hf0x4hEpcygXP0LtvfvAQ49Bbj2aWtZT3gqM///0A=
+    dependencies:
+      - aff
+      - effect
+      - either
+      - exceptions
+      - functions
+      - maybe
   bifunctors:
     type: registry
     version: 6.0.0
@@ -735,6 +771,18 @@ packages:
       - newtype
       - prelude
       - tuples
+  catenable-lists:
+    type: registry
+    version: 7.0.0
+    integrity: sha256-76vYENhwF4BWTBsjeLuErCH2jqVT4M3R1HX+4RwSftA=
+    dependencies:
+      - control
+      - foldable-traversable
+      - lists
+      - maybe
+      - prelude
+      - tuples
+      - unfoldable
   console:
     type: registry
     version: 6.1.0
@@ -910,6 +958,31 @@ packages:
       - tuples
       - typelevel-prelude
       - unfoldable
+  fork:
+    type: registry
+    version: 6.0.0
+    integrity: sha256-X7u0SuCvFbLbzuNEKLBNuWjmcroqMqit4xEzpQwAP7E=
+    dependencies:
+      - aff
+  free:
+    type: registry
+    version: 7.1.0
+    integrity: sha256-JAumgEsGSzJCNLD8AaFvuX7CpqS5yruCngi6yI7+V5k=
+    dependencies:
+      - catenable-lists
+      - control
+      - distributive
+      - either
+      - exists
+      - foldable-traversable
+      - invariant
+      - lazy
+      - maybe
+      - prelude
+      - tailrec
+      - transformers
+      - tuples
+      - unsafe-coerce
   functions:
     type: registry
     version: 6.0.0
@@ -1038,6 +1111,14 @@ packages:
       - invariant
       - newtype
       - prelude
+  mmorph:
+    type: registry
+    version: 7.0.0
+    integrity: sha256-urZlZNNqGeQFe5D/ClHlR8QgGBNHTMFPtJ5S5IpflTQ=
+    dependencies:
+      - free
+      - functors
+      - transformers
   newtype:
     type: registry
     version: 5.0.0
@@ -1186,6 +1267,18 @@ packages:
     version: 4.0.0
     integrity: sha256-fwXerld6Xw1VkReh8yeQsdtLVrjfGiVuC5bA1Wyo/J4=
     dependencies: []
+  pipes:
+    type: registry
+    version: 8.0.0
+    integrity: sha256-kvfqGM4cPA/wCcBHbp5psouFw5dZGvku2462x7ZBwSY=
+    dependencies:
+      - aff
+      - lists
+      - mmorph
+      - prelude
+      - tailrec
+      - transformers
+      - tuples
   prelude:
     type: registry
     version: 6.0.1
@@ -1250,6 +1343,39 @@ packages:
     integrity: sha256-a1ibQkiUcbODbLE/WAq7Ttbbh9ex+x33VCQ7GngKudU=
     dependencies:
       - unsafe-coerce
+  spec:
+    type: registry
+    version: 7.5.5
+    integrity: sha256-HdyBH7Ys1/m2SdTq3u2u9LdQ4cGeaohWeEMYay2mHdU=
+    dependencies:
+      - aff
+      - ansi
+      - arrays
+      - avar
+      - bifunctors
+      - control
+      - datetime
+      - debug
+      - effect
+      - either
+      - exceptions
+      - foldable-traversable
+      - fork
+      - identity
+      - integers
+      - lists
+      - maybe
+      - newtype
+      - now
+      - ordered-collections
+      - parallel
+      - pipes
+      - prelude
+      - refs
+      - strings
+      - tailrec
+      - transformers
+      - tuples
   st:
     type: registry
     version: 6.2.0

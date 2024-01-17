@@ -29,7 +29,19 @@ import Purvasm.MiddleEnd.Types (ModuleName(..))
 
 main :: Effect Unit
 main = launchAff_ do
+  envRef <- liftEffect $ Ref.new (emptyModuleEnv (ModuleName "Data.Either"))
   path <- liftEffect $ Path.resolve [] "output"
+  for_ [ "Sample" ] \md -> do
+    buf <- readFile (Path.concat [ path, md, "externs.cbor" ])
+    res <- Cbor.decodeFirst buf <#> runDecoder (decoder @ExternsFile)
+    case res of
+      Left e -> do
+        liftEffect $ throw ("Failed to decode externs file: " <> md)
+      Right externs -> liftEffect do
+        Ref.modify_ (\env -> env { global = externsEnv env.global externs }) envRef
+  env <- liftEffect $ Ref.read envRef
+  Console.log "[env]"
+  Console.logShow env
   json <- readTextFile UTF8 (Path.concat [ path, "Sample/corefn.json" ])
   let parsedModule = parseJson json >>= CFJ.decodeModule
   case parsedModule of
@@ -39,7 +51,7 @@ main = launchAff_ do
         CF.Rec _ -> Console.log "Rec"
         CF.NonRec (CF.Binding _ (CF.Ident ident) expr) -> do
           Console.log $ "[" <> ident <> "]"
-          Console.logShow $ runTranslM emptyEnv (translExpr expr)
+          Console.logShow $ runTranslM env (translExpr expr)
 -- main :: Effect Unit
 -- main = launchAff_ do
 --   envRef <- liftEffect $ Ref.new (emptyModuleEnv (ModuleName "Data.Either"))

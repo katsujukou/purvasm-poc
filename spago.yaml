@@ -19,7 +19,8 @@ package:
     - unicode
   test:
     main: Test.Main
-    dependencies: []
+    dependencies:
+      - spec
 workspace:
   package_set:
     registry: 47.9.2

@@ -20,7 +20,7 @@ import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafeCrashWith)
 import PureScript.CoreFn as CF
 import PureScript.CoreFn as CF
-import Purvasm.MiddleEnd.ELambda.PatternMatch (PatternMatching(..), binderToPattern, splitMatching)
+import Purvasm.MiddleEnd.ELambda.PatternMatch (PatternMatching(..), binderToPattern, divideMatching)
 import Purvasm.MiddleEnd.ELambda.Syntax (ELambda(..))
 import Purvasm.MiddleEnd.ELambda.Translate.Env (GlobalEnv(..), LocalVarEnv(..), TranslEnv, extendByBinders, extendByIdent, searchLocalEnv)
 import Purvasm.MiddleEnd.ELambda.Translate.Error (TranslError(..), throwNotImplemented)
@@ -222,8 +222,8 @@ translPatternMatching
 translPatternMatching pm = do
   let
     _ = unsafePerformEffect do
-      let x = splitMatching pm
-      Console.log "[[patMatrix]]"
+      let x = divideMatching pm
+      Console.log "[decisionTree]"
       Console.logShow x
   pure $ ELVar (Var 0)
 
