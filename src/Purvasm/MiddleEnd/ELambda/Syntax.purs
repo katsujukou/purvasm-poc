@@ -5,7 +5,7 @@ import Prelude
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple)
-import Purvasm.MiddleEnd.Types (Arity, AtomicConstant, Primitive, StructureConstant, Var)
+import Purvasm.MiddleEnd.Types (Arity, AtomicConstant, Primitive, StructureConstant, Var(..))
 
 data ELambda
   = ELVar Var

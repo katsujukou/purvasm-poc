@@ -17,6 +17,7 @@ import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(..), fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
+import Debug (spy)
 import PureScript.CoreFn as CF
 import PureScript.ExternsFile (ExternsDeclaration(..), ExternsFile(..)) as Ext
 import PureScript.ExternsFile.Names (ModuleName(..), ProperName(..)) as Ext
@@ -78,7 +79,7 @@ extendByBinders binders env0 = foldl (\env binder -> env { local = extend binder
   where
   extend binder env = case binderPaths mempty binder of
     [] -> env
-    vars -> TEnv vars env
+    vars -> TEnv (spy "vars" vars) (spy "env" env)
 
 -- | Collect all local bound variables and occurrence in the given binders.
 binderPaths :: forall a. Occurrence -> CF.Binder a -> Array (Tuple Ident Occurrence)

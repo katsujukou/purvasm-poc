@@ -3,10 +3,9 @@ module Test.Purvasm.MiddleEnd.Translate.PatternMatch where
 import Prelude
 
 import Control.Monad.Reader (runReaderT)
-import Data.Maybe (Maybe(..))
 import PureScript.CoreFn as CF
 import Purvasm.MiddleEnd.ELambda.PatternMatch (Pattern(..), binderToPattern)
-import Purvasm.MiddleEnd.ELambda.Translate.Env (emptyEnv)
+import Purvasm.MiddleEnd.ELambda.Env (emptyEnv)
 import Purvasm.MiddleEnd.Types (Ident(..))
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)

@@ -5,11 +5,9 @@ import Prelude
 import Data.Argonaut (parseJson)
 import Data.Either (Either(..))
 import Data.Foldable (for_)
-import Data.Traversable (for)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
-import Effect.Class.Console (logShow)
 import Effect.Class.Console as Console
 import Effect.Exception (throw)
 import Effect.Ref as Ref
@@ -19,19 +17,19 @@ import Node.FS.Aff (readFile, readTextFile)
 import Node.Path as Path
 import PureScript.CoreFn as CF
 import PureScript.CoreFn.Json as CFJ
-import PureScript.ExternsFile (ExternsFile(..))
+import PureScript.ExternsFile (ExternsFile)
 import PureScript.ExternsFile.Decoder.Class (decoder)
 import PureScript.ExternsFile.Decoder.Monad (runDecoder)
 import Purvasm.MiddleEnd.ELambda.Translate (translExpr)
-import Purvasm.MiddleEnd.ELambda.Translate.Env (emptyEnv, emptyGlobalEnv, emptyLocalEnv, emptyModuleEnv, externsEnv)
-import Purvasm.MiddleEnd.ELambda.Translate.Monad (runTranslM)
+import Purvasm.MiddleEnd.ELambda.Env (emptyModuleEnv, externsEnv)
+import Purvasm.MiddleEnd.ELambda.Monad (runTranslM)
 import Purvasm.MiddleEnd.Types (ModuleName(..))
 
 main :: Effect Unit
 main = launchAff_ do
-  envRef <- liftEffect $ Ref.new (emptyModuleEnv (ModuleName "Sample"))
+  envRef <- liftEffect $ Ref.new (emptyModuleEnv (ModuleName "Data.Maybe"))
   path <- liftEffect $ Path.resolve [] "output"
-  for_ [ "Sample" ] \md -> do
+  for_ [ "Data.Maybe" ] \md -> do
     buf <- readFile (Path.concat [ path, md, "externs.cbor" ])
     res <- Cbor.decodeFirst buf <#> runDecoder (decoder @ExternsFile)
     case res of
@@ -42,7 +40,7 @@ main = launchAff_ do
   env <- liftEffect $ Ref.read envRef
   Console.log "[env]"
   Console.logShow env
-  json <- readTextFile UTF8 (Path.concat [ path, "Sample/corefn.json" ])
+  json <- readTextFile UTF8 (Path.concat [ path, "Data.Maybe/corefn.json" ])
   let parsedModule = parseJson json >>= CFJ.decodeModule
   case parsedModule of
     Left _ -> liftEffect $ throw "failed to parse corefn module"

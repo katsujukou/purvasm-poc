@@ -27,8 +27,8 @@ import Data.Tuple (Tuple(..), fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 import PureScript.CoreFn as CF
-import Purvasm.MiddleEnd.ELambda.Syntax (ELambda(..))
 import Purvasm.MiddleEnd.ELambda.Env (GlobalEnv(..), TranslEnv, ConstructorDesc)
+import Purvasm.MiddleEnd.ELambda.Syntax (ELambda(..))
 import Purvasm.MiddleEnd.Types (AtomicConstant(..), GlobalName, Ident(..), ModuleName(..), Primitive(..), mkGlobalName)
 import Record as Record
 import Type.Proxy (Proxy(..))
@@ -239,7 +239,7 @@ divideMatching pm@(PatternMatching caseHeads matrix) = case Array.uncons matrix 
 
   splitVarMatching :: PatternMatching -> PatternMatching /\ PatternMatching
   splitVarMatching (PatternMatching h mat) = case Array.uncons h of
-    Nothing -> unsafeCrashWith "Illegal empty matrix"
+    Nothing -> unsafeCrashWith "splitVarMatching: Illegal empty matrix"
     Just { tail: casL } ->
       let
         { init: varsMatrix, rest } = Array.span (_.patList >>> Array.head >>> maybe false alwaysMatch) mat

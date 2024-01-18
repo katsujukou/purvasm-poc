@@ -15,3 +15,27 @@ f = case _ of
   Mul (Add x y) z -> 5
   Add x Zero -> 6
   x -> 7
+
+h :: Array Int -> Int
+h = case _ of
+  [] -> 1
+  [ 1 ] -> 2
+  [ x, 1 ] -> 3
+  [ 3 ] -> 4
+  [ x, y, 2 ] -> 5
+  [ x, _, y ] -> 6
+  xs -> 7
+
+type Person = { name :: String, age :: Int }
+
+g :: Person -> Int
+g = case _ of
+  { name: "aice" } -> 0
+  { name, age: 15 } -> 1
+  { age } | age >= 18 -> 3
+  _ -> 4
+
+ge :: Int -> Int -> Boolean
+ge _ _ = true
+
+infix 8 ge as >=
