@@ -29,7 +29,7 @@ import Purvasm.MiddleEnd.Types (ModuleName(..))
 
 main :: Effect Unit
 main = launchAff_ do
-  envRef <- liftEffect $ Ref.new (emptyModuleEnv (ModuleName "Data.Either"))
+  envRef <- liftEffect $ Ref.new (emptyModuleEnv (ModuleName "Sample"))
   path <- liftEffect $ Path.resolve [] "output"
   for_ [ "Sample" ] \md -> do
     buf <- readFile (Path.concat [ path, md, "externs.cbor" ])

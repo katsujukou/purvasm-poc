@@ -1,4 +1,4 @@
-module Purvasm.MiddleEnd.ELambda.Translate.Error
+module Purvasm.MiddleEnd.ELambda.Error
   ( TranslError(..)
   , throwNotImplemented
   ) where

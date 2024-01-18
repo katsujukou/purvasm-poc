@@ -15,15 +15,12 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Traversable (for, traverse)
 import Data.Tuple.Nested (type (/\), (/\))
-import Effect.Console as Console
-import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafeCrashWith)
 import PureScript.CoreFn as CF
-import PureScript.CoreFn as CF
-import Purvasm.MiddleEnd.ELambda.PatternMatch (PatternMatching(..), binderToPattern, divideMatching)
+import Purvasm.MiddleEnd.ELambda.PatternMatch (PatternMatching(..), binderToPattern, compilePatternMatching)
 import Purvasm.MiddleEnd.ELambda.Syntax (ELambda(..))
-import Purvasm.MiddleEnd.ELambda.Translate.Env (GlobalEnv(..), LocalVarEnv(..), TranslEnv, extendByBinders, extendByIdent, searchLocalEnv)
-import Purvasm.MiddleEnd.ELambda.Translate.Error (TranslError(..), throwNotImplemented)
+import Purvasm.MiddleEnd.ELambda.Env (GlobalEnv(..), LocalVarEnv(..), TranslEnv, extendByBinders, extendByIdent, searchLocalEnv)
+import Purvasm.MiddleEnd.ELambda.Error (TranslError(..), throwNotImplemented)
 import Purvasm.MiddleEnd.Types (AccessPosition(..), Arity, AtomicConstant(..), ConstructorTag(..), Ident(..), ModuleName(..), Occurrence(..), Primitive(..), StructureConstant(..), Var(..), mkGlobalName)
 import Record as Record
 import Type.Proxy (Proxy(..))
@@ -87,7 +84,7 @@ translExpr = case _ of
     , [ caseT, caseF ] <- caseAlts
     , CF.CaseAlternative [ CF.BinderLit _ (CF.LitBoolean true) ] (CF.Unconditional exprT) <- caseT
     , CF.CaseAlternative [ CF.BinderNull _ ] (CF.Unconditional exprF) <- caseF ->
-        ELIfThenElse
+        ELifthenelse
           <$> translExpr caseHead
           <*> translExpr exprT
           <*> translExpr exprF
@@ -166,19 +163,19 @@ translExpr = case _ of
         | otherwise -> pure ELNone
 
   translExprCase :: Array Expr -> Array (CF.CaseAlternative CF.Ann) -> m ELambda
-  translExprCase heads caseAlts = do
+  translExprCase heads caseAlts = ado
     trHeads <- traverse translExpr heads
     trMatrix <- for caseAlts \(CF.CaseAlternative bs caseGuard) -> ado
       patList <- traverse binderToPattern bs
       action <- local (extendByBinders bs) (translCaseGuard caseGuard)
       in { patList, action }
-    translPatternMatching (PatternMatching trHeads trMatrix)
+    in compilePatternMatching (PatternMatching trHeads trMatrix)
 
   translCaseGuard :: CF.CaseGuard CF.Ann -> m ELambda
   translCaseGuard = case _ of
     CF.Unconditional e -> translExpr e
     CF.Guarded gs -> foldr
-      (\(CF.Guard g e) lambda -> ELIfThenElse <$> translExpr g <*> translExpr e <*> lambda)
+      (\(CF.Guard g e) lambda -> ELifthenelse <$> translExpr g <*> translExpr e <*> lambda)
       (pure ELStaticFail)
       gs
 
@@ -212,20 +209,6 @@ translExpr = case _ of
 elambdaConst :: ELambda -> Maybe StructureConstant
 elambdaConst (ELConst sc) = Just sc
 elambdaConst _ = Nothing
-
-translPatternMatching
-  :: forall m
-   . MonadError TranslError m
-  => MonadReader TranslEnv m
-  => PatternMatching
-  -> m ELambda
-translPatternMatching pm = do
-  let
-    _ = unsafePerformEffect do
-      let x = divideMatching pm
-      Console.log "[decisionTree]"
-      Console.logShow x
-  pure $ ELVar (Var 0)
 
 spanMap :: forall a b. (a -> Maybe b) -> Array a -> Array b /\ Array a
 spanMap pred xs = ST.run do

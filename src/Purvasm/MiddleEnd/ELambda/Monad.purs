@@ -1,4 +1,4 @@
-module Purvasm.MiddleEnd.ELambda.Translate.Monad where
+module Purvasm.MiddleEnd.ELambda.Monad where
 
 import Prelude
 
@@ -7,8 +7,8 @@ import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (class MonadAsk, class MonadReader, ReaderT, runReaderT)
 import Data.Either (Either)
 import Data.Identity (Identity(..))
-import Purvasm.MiddleEnd.ELambda.Translate.Env (TranslEnv)
-import Purvasm.MiddleEnd.ELambda.Translate.Error (TranslError)
+import Purvasm.MiddleEnd.ELambda.Env (TranslEnv)
+import Purvasm.MiddleEnd.ELambda.Error (TranslError)
 
 newtype TranslM a = TranslM (ReaderT TranslEnv (ExceptT TranslError Identity) a)
 

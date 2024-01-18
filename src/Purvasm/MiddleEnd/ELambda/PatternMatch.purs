@@ -1,34 +1,35 @@
 -- Pattern matching compiler
-module Purvasm.MiddleEnd.ELambda.PatternMatch where
+module Purvasm.MiddleEnd.ELambda.PatternMatch
+  ( DecisionTree(..)
+  , MatrixType(..)
+  , PatternMatching(..)
+  , Pattern(..)
+  , PatternMatrix
+  , binderToPattern
+  , compilePatternMatching
+  ) where
 
 import Prelude
 
 import Control.Alternative (guard)
 import Control.Monad.Reader (class MonadReader, ask)
-import Control.Monad.ST as ST
-import Control.Monad.ST.Internal as STRef
-import Data.Array (foldr, mapWithIndex, (!!), (..))
+import Data.Array (foldr, (!!), (..))
 import Data.Array as Array
 import Data.Array.Partial as ArrayP
-import Data.Array.ST as STArray
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
-import Data.List (List(..), (:))
-import Data.List as L
+import Data.Lens (_2, over)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), maybe)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (for, for_, traverse)
-import Data.Tuple (Tuple(..), snd)
+import Data.Traversable (for, traverse)
+import Data.Tuple (Tuple(..), fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
-import Debug (spy)
-import Effect.Console (logShow)
-import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 import PureScript.CoreFn as CF
 import Purvasm.MiddleEnd.ELambda.Syntax (ELambda(..))
-import Purvasm.MiddleEnd.ELambda.Translate.Env (GlobalEnv(..), TranslEnv, ConstructorDesc)
-import Purvasm.MiddleEnd.Types (Arity, AtomicConstant(..), ConstructorTag(..), GlobalName, Ident(..), ModuleName(..), Primitive(..), StructureConstant(..), mkGlobalName)
+import Purvasm.MiddleEnd.ELambda.Env (GlobalEnv(..), TranslEnv, ConstructorDesc)
+import Purvasm.MiddleEnd.Types (AtomicConstant(..), GlobalName, Ident(..), ModuleName(..), Primitive(..), mkGlobalName)
 import Record as Record
 import Type.Proxy (Proxy(..))
 
@@ -51,6 +52,44 @@ derive instance Eq Pattern
 derive instance Ord Pattern
 instance Show Pattern where
   show p = genericShow p
+
+type PatternMatrix =
+  { patList :: Array Pattern
+  , action :: ELambda
+  }
+
+data PatternMatching = PatternMatching
+  -- `case head`
+  (Array ELambda)
+  -- list of patterns and corresponding action
+  (Array PatternMatrix)
+
+derive instance Generic PatternMatching _
+instance Show PatternMatching where
+  show = genericShow
+
+data MatrixType
+  = MArray
+  | MConstructor
+  | MConst
+  | MRecord
+
+leftmostPattern :: PatternMatrix -> Pattern
+leftmostPattern = _.patList >>> Array.head >>> case _ of
+  Nothing -> unsafeCrashWith "leftTopPattern: empty matrix"
+  Just p -> p
+
+matrixType :: Array PatternMatrix -> MatrixType
+matrixType = Array.uncons >>> case _ of
+  Nothing -> unsafeCrashWith "matrixType: empty matrix"
+  Just { head: { patList } }
+    | Just { head: pat } <- Array.uncons patList -> case pat of
+        PatConstruct _ _ _ -> MConstructor
+        PatArray _ -> MArray
+        PatRecord _ -> MRecord
+        PatConst _ -> MConst
+        _ -> unsafeCrashWith "matrixType: non concrete matrix type"
+  _ -> unsafeCrashWith "matrixType: empty matrix line"
 
 binderToPattern :: forall m. MonadReader TranslEnv m => CF.Binder CF.Ann -> m Pattern
 binderToPattern = case _ of
@@ -93,6 +132,17 @@ derive instance Generic DecisionTree _
 instance Show DecisionTree where
   show dt = genericShow dt
 
+compilePatternMatching :: PatternMatching -> ELambda
+compilePatternMatching = divideMatching >>> conquerMatching
+
+conquerMatching :: DecisionTree -> ELambda
+conquerMatching = case _ of
+  Fail -> ELStaticFail
+  Leaf e -> e
+  TryWith l r -> ELStaticHandle (conquerMatching l) (conquerMatching r)
+  JumpThru e tbl -> ELswitch e (map (over _2 conquerMatching) tbl)
+  Condition e tbl -> ELConditional e (map (over _2 conquerMatching) tbl)
+
 divideMatching :: PatternMatching -> DecisionTree
 divideMatching pm@(PatternMatching caseHeads matrix) = case Array.uncons matrix of
   Nothing -> Fail
@@ -106,31 +156,86 @@ divideMatching pm@(PatternMatching caseHeads matrix) = case Array.uncons matrix 
           combine (divideMatching vars) (divideMatching others)
     | otherwise ->
         let
-          nonVars /\ others = splitNonVarMatching pm
-          _ = expandMatching nonVars
+          (PatternMatching _ nonVars) /\ others = splitNonVarMatching pm
+          matrices = groupBy (sameToplevelSymbol `on` leftmostPattern) nonVars
         in
-          combine (Fail) (divideMatching others)
+          combine (expandMatching (matrixType nonVars) caseHeads matrices) (divideMatching others)
   where
-  expandMatching (PatternMatching h mat) = unsafePartial do
+  expandMatching matType casHeads matrices = case matType of
+    MConstructor -> expandConstructorMatching casHeads matrices
+    MConst -> expandConstMatching casHeads matrices
+    MArray -> expandArrayMatching casHeads matrices
+    MRecord -> expandRecordMatching casHeads matrices
+
+  expandConstMatching casHeads matrices = unsafePartial $
     let
-      grouped = groupBy (sameToplevelSymbol `on` (_.patList >>> ArrayP.head)) mat
-      expanded = grouped <#> \submat -> case ArrayP.head (ArrayP.head submat).patList of
-        PatConstruct desc _ _ -> do
-          let
-            childSlots = xrange 0 desc.arity
-            casHead = ArrayP.head h
-            expandedHeads = (\i -> ELPrim (PGetField i) [ casHead ]) <$> childSlots
-            expandedMatrix =
-              ( \ln ->
-                  let
-                    PatConstruct _ _ patList = ArrayP.head ln.patList
-                  in
-                    ln { patList = patList <> (Array.drop 1 ln.patList) }
-              ) <$> submat
-          desc.tag /\ PatternMatching expandedHeads expandedMatrix
-      _ = unsafePerformEffect do
-        logShow expanded
-    Fail
+      Just { head: casHead, tail: casL } = Array.uncons casHeads
+      expanded = matrices <#> \submat ->
+        let
+          Just (PatConst const) = Array.head =<< _.patList <$> (submat !! 0)
+          expandedMatrix = (Record.modify (Proxy @"patList") (Array.drop 1)) <$> submat
+        in
+          const /\ divideMatching (PatternMatching casL expandedMatrix)
+    in
+      Condition casHead expanded
+
+  expandConstructorMatching casHeads matrices = unsafePartial $
+    let
+      Just { head: casHead, tail: casL } = Array.uncons casHeads
+      expanded = matrices <#> \submat ->
+        let
+          PatConstruct desc _ _ = ArrayP.head (ArrayP.head submat).patList
+          expandedHeads = (\i -> ELPrim (PGetField i) [ casHead ]) <$> (0 ..^ desc.arity)
+          expandedMatrix =
+            ( \ln ->
+                let
+                  PatConstruct _ _ patList = ArrayP.head ln.patList
+                in
+                  ln { patList = patList <> (Array.drop 1 ln.patList) }
+            ) <$> submat
+        in
+          desc.tag /\ (divideMatching $ PatternMatching (expandedHeads <> casL) expandedMatrix)
+    in
+      JumpThru casHead expanded
+
+  expandArrayMatching casHeads matrices = unsafePartial $
+    let
+      Just { head: casHead, tail: casL } = Array.uncons casHeads
+      expanded = matrices <#> \submat ->
+        let
+          PatArray pats = ArrayP.head (ArrayP.head submat).patList
+          patLength = Array.length pats
+          expandedHeads = (\i -> ELPrim (PGetField i) [ casHead ]) <$> (0 ..^ patLength)
+          expandedMatrix =
+            ( \ln ->
+                let
+                  PatArray patList = ArrayP.head ln.patList
+                in
+                  ln { patList = patList <> (Array.drop 1 ln.patList) }
+            ) <$> submat
+        in
+          (ACInt patLength) /\ divideMatching (PatternMatching (expandedHeads <> casL) expandedMatrix)
+    in
+      Condition (ELPrim PGetBlockSize [ casHead ]) expanded
+
+  expandRecordMatching casHeads matrices = unsafePartial $
+    let
+      Just { head: casHead, tail: casL } = Array.uncons casHeads
+      expanded = matrices <#> \submat ->
+        let
+          PatRecord pats = ArrayP.head (ArrayP.head submat).patList
+          expandedHeads = (\(fld /\ _) -> ELPrim (PGetRecordField fld) [ casHead ]) <$> pats
+          expandedMatrix =
+            ( \ln ->
+                let
+                  PatRecord patList = ArrayP.head ln.patList
+                in
+                  ln { patList = (snd <$> patList) <> (Array.drop 1 ln.patList) }
+            ) <$> submat
+        in
+          divideMatching (PatternMatching (expandedHeads <> casL) expandedMatrix)
+    in
+      foldr combine Fail expanded
 
   splitVarMatching :: PatternMatching -> PatternMatching /\ PatternMatching
   splitVarMatching (PatternMatching h mat) = case Array.uncons h of
@@ -162,27 +267,14 @@ divideMatching pm@(PatternMatching caseHeads matrix) = case Array.uncons matrix 
     PatNamed _ pat -> alwaysMatch pat
     _ -> false
 
-type PatternMatrix =
-  { patList :: Array Pattern
-  , action :: ELambda
-  }
-
-data PatternMatching = PatternMatching
-  -- `case head`
-  (Array ELambda)
-  -- list of patterns and corresponding action
-  (Array PatternMatrix)
-
-derive instance Generic PatternMatching _
-instance Show PatternMatching where
-  show = genericShow
-
 sameToplevelSymbol :: Pattern -> Pattern -> Boolean
 sameToplevelSymbol = case _, _ of
   PatWildcard, PatWildcard -> true
   PatVar _, PatVar _ -> true
   PatConst c1, PatConst c2 -> c1 == c2
   PatConstruct _ name1 _, PatConstruct _ name2 _ -> name1 == name2
+  PatArray pat1, PatArray pat2 -> Array.length pat1 == Array.length pat2
+  PatRecord pat1, PatRecord pat2 -> map fst pat1 == map fst pat2
   _, _ -> false
 
 groupBy :: forall a. (a -> a -> Boolean) -> Array a -> Array (Array a)
@@ -201,3 +293,5 @@ xrange m n = do
   x <- m .. n
   guard (x < n)
   pure x
+
+infix 8 xrange as ..^

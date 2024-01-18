@@ -1,4 +1,4 @@
-module Purvasm.MiddleEnd.ELambda.Translate.Env where
+module Purvasm.MiddleEnd.ELambda.Env where
 
 import Prelude
 
@@ -21,7 +21,7 @@ import PureScript.CoreFn as CF
 import PureScript.ExternsFile (ExternsDeclaration(..), ExternsFile(..)) as Ext
 import PureScript.ExternsFile.Names (ModuleName(..), ProperName(..)) as Ext
 import PureScript.ExternsFile.Types (DataDeclType(..), SourceType, TypeKind(..)) as Ext
-import Purvasm.MiddleEnd.ELambda.Translate.Error (TranslError(..))
+import Purvasm.MiddleEnd.ELambda.Error (TranslError(..))
 import Purvasm.MiddleEnd.Types (AccessPosition(..), Arity, GlobalName, Ident(..), ModuleName(..), Occurrence, Var(..), mkGlobalName, (<:))
 import Record as Record
 import Type.Proxy (Proxy(..))
