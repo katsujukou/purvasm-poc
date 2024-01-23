@@ -3,17 +3,21 @@ module PureScript.CoreFn where
 import Prelude
 
 import Data.Array as Array
-import Data.Foldable (class Foldable, foldMap, foldlDefault, foldrDefault)
+import Data.Foldable (class Foldable)
+import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
+import Data.Show.Generic (genericShow)
 import Data.String.CodeUnits as SCU
-import Data.Traversable (class Traversable, sequenceDefault, traverse)
+import Data.Traversable (class Traversable)
 
 newtype Ident = Ident String
 
-derive newtype instance eqIdent :: Eq Ident
-derive newtype instance ordIdent :: Ord Ident
+derive newtype instance Eq Ident
+derive newtype instance Ord Ident
 derive instance Newtype Ident _
+instance Show Ident where
+  show (Ident ident) = "(Ident " <> show ident <> ")"
 
 newtype ModuleName = ModuleName String
 
@@ -21,16 +25,26 @@ derive newtype instance eqModuleName :: Eq ModuleName
 derive newtype instance ordModuleName :: Ord ModuleName
 derive instance Newtype ModuleName _
 
+instance Show ModuleName where
+  show (ModuleName mn) = "(ModuleName " <> mn <> ")"
+
 newtype ProperName = ProperName String
 
-derive newtype instance eqProperName :: Eq ProperName
-derive newtype instance ordProperName :: Ord ProperName
+derive newtype instance Eq ProperName
+derive newtype instance Ord ProperName
+
+instance Show ProperName where
+  show (ProperName pn) = "(ProperName " <> pn <> ")"
 
 data Qualified a = Qualified (Maybe ModuleName) a
 
-derive instance eqQualified :: Eq a => Eq (Qualified a)
-derive instance ordQualified :: Ord a => Ord (Qualified a)
+derive instance Generic (Qualified a) _
+derive instance Eq a => Eq (Qualified a)
+derive instance Ord a => Ord (Qualified a)
 derive instance Functor Qualified
+
+instance Show a => Show (Qualified a) where
+  show = genericShow
 
 unQualified :: forall a. Qualified a -> a
 unQualified (Qualified _ a) = a
@@ -54,6 +68,9 @@ newtype Ann = Ann
   , meta :: Maybe Meta
   }
 
+instance Show Ann where
+  show (Ann ann) = "(Ann " <> show ann <> ")"
+
 data Meta
   = IsConstructor ConstructorType (Array Ident)
   | IsNewtype
@@ -64,17 +81,27 @@ data Meta
 
 derive instance eqMeta :: Eq Meta
 derive instance ordMeta :: Ord Meta
+derive instance Generic Meta _
+instance Show Meta where
+  show = genericShow
 
 data ConstructorType
   = ProductType
   | SumType
 
-derive instance eqConstructorType :: Eq ConstructorType
-derive instance ordConstructorType :: Ord ConstructorType
+derive instance Eq ConstructorType
+derive instance Ord ConstructorType
+derive instance Generic ConstructorType _
+instance Show ConstructorType where
+  show = genericShow
 
 data Comment
   = LineComment String
   | BlockComment String
+
+derive instance Generic Comment _
+instance Show Comment where
+  show = genericShow
 
 newtype Module a = Module
   { name :: ModuleName
@@ -88,26 +115,38 @@ newtype Module a = Module
   , comments :: Array Comment
   }
 
+instance Show a => Show (Module a) where
+  show (Module m) = "(Module " <> show m <> ")"
+
 moduleName :: forall a. Module a -> ModuleName
 moduleName (Module mod) = mod.name
 
 data Import a = Import a ModuleName
 
-derive instance functorImport :: Functor Import
+derive instance Functor Import
+derive instance Generic (Import a) _
+instance Show a => Show (Import a) where
+  show = genericShow
 
 importName :: forall a. Import a -> ModuleName
 importName (Import _ name) = name
 
 data ReExport = ReExport ModuleName Ident
 
-derive instance eqReExport :: Eq ReExport
-derive instance ordReExport :: Ord ReExport
+derive instance Eq ReExport
+derive instance Ord ReExport
+derive instance Generic ReExport _
+instance Show ReExport where
+  show = genericShow
 
 data Bind a
   = NonRec (Binding a)
   | Rec (Array (Binding a))
 
-derive instance functorBind :: Functor Bind
+derive instance Functor Bind
+derive instance Generic (Bind a) _
+instance Show a => Show (Bind a) where
+  show = genericShow
 
 nonRecBinding :: forall a. Bind a -> Maybe (Binding a)
 nonRecBinding = case _ of
@@ -120,7 +159,10 @@ isRec _ = false
 
 data Binding a = Binding a Ident (Expr a)
 
-derive instance functorBinding :: Functor Binding
+derive instance Functor Binding
+derive instance Generic (Binding a) _
+instance Show a => Show (Binding a) where
+  show = genericShow
 
 bindingIdent :: forall a. Binding a -> Ident
 bindingIdent (Binding _ ident _) = ident
@@ -139,35 +181,44 @@ data Expr a
   | ExprCase a (Array (Expr a)) (Array (CaseAlternative a))
   | ExprLet a (Array (Bind a)) (Expr a)
 
-derive instance functorExpr :: Functor Expr
+derive instance Functor Expr
+derive instance Generic (Expr a) _
+instance Show a => Show (Expr a) where
+  show expr = genericShow expr
 
 data CaseAlternative a = CaseAlternative (Array (Binder a)) (CaseGuard a)
 
-derive instance functorCaseAlternative :: Functor CaseAlternative
+derive instance Functor CaseAlternative
+derive instance Generic (CaseAlternative a) _
+instance Show a => Show (CaseAlternative a) where
+  show cas = genericShow cas
 
 data CaseGuard a
   = Unconditional (Expr a)
   | Guarded (Array (Guard a))
 
-derive instance functorCaseGuard :: Functor CaseGuard
+derive instance Functor CaseGuard
+derive instance Generic (CaseGuard a) _
+instance Show a => Show (CaseGuard a) where
+  show cg = genericShow cg
 
 data Guard a = Guard (Expr a) (Expr a)
 
-derive instance functorGuard :: Functor Guard
+derive instance Functor Guard
+
+derive instance Generic (Guard a) _
+instance Show a => Show (Guard a) where
+  show = genericShow
 
 data Prop a = Prop String a
 
+derive instance Functor Prop
+derive instance Foldable Prop
+derive instance Traversable Prop
 derive instance Eq a => Eq (Prop a)
-derive instance functorProp :: Functor Prop
-
-instance foldableProp :: Foldable Prop where
-  foldl k a (Prop _ b) = k a b
-  foldr k b (Prop _ a) = k a b
-  foldMap k (Prop _ a) = k a
-
-instance traversableProp :: Traversable Prop where
-  traverse k (Prop str a) = Prop str <$> k a
-  sequence (Prop str a) = Prop str <$> a
+derive instance Generic (Prop a) _
+instance Show a => Show (Prop a) where
+  show = genericShow
 
 propKey :: forall a. Prop a -> String
 propKey (Prop k _) = k
@@ -188,26 +239,14 @@ data Literal a
   | LitRecord (Array (Prop a))
 
 derive instance Eq a => Eq (Literal a)
+derive instance Generic (Literal a) _
+
 derive instance Functor Literal
+derive instance Foldable Literal
+derive instance Traversable Literal
 
-instance foldableLiteral :: Foldable Literal where
-  foldl k = foldlDefault k
-  foldr k = foldrDefault k
-  foldMap k = case _ of
-    LitArray as -> foldMap k as
-    LitRecord ps -> foldMap (foldMap k) ps
-    _ -> mempty
-
-instance traversableLiteral :: Traversable Literal where
-  traverse k = case _ of
-    LitArray as -> LitArray <$> traverse k as
-    LitRecord ps -> LitRecord <$> traverse (traverse k) ps
-    LitInt a -> pure (LitInt a)
-    LitNumber a -> pure (LitNumber a)
-    LitString a -> pure (LitString a)
-    LitChar a -> pure (LitChar a)
-    LitBoolean a -> pure (LitBoolean a)
-  sequence a = sequenceDefault a
+instance Show a => Show (Literal a) where
+  show = genericShow
 
 data Binder a
   = BinderNull a
@@ -216,7 +255,10 @@ data Binder a
   | BinderLit a (Literal (Binder a))
   | BinderConstructor a (Qualified ProperName) (Qualified Ident) (Array (Binder a))
 
-derive instance functorBinder :: Functor Binder
+derive instance Functor Binder
+derive instance Generic (Binder a) _
+instance Show a => Show (Binder a) where
+  show b = genericShow b
 
 emptyAnn :: Ann
 emptyAnn = Ann
